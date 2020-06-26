@@ -1,6 +1,6 @@
 //
-// SimpleSheetPresentation
-// SimpleSheetPresentation
+// SheetPresentation
+// SheetPresentation
 //
 // Created by Eugene Egorov on 18 June 2020.
 // Copyright (c) 2020 Eugene Egorov. All rights reserved.
@@ -8,11 +8,19 @@
 
 import UIKit
 
-class SimpleSheetPresentationController: UIPresentationController {
-    private let backgroundView: UIView = .init()
-    private let defaultHeight: CGFloat = 200.0
+enum SheetPresentationMode {
+    case flat(excludeSafeArea: Bool)
+    case card(cornerRadius: CGFloat, insets: UIEdgeInsets)
+}
 
-    override init(presentedViewController: UIViewController, presenting presentingViewController: UIViewController?) {
+class SheetPresentationController: UIPresentationController {
+    private let mode: SheetPresentationMode
+    private let defaultHeight: CGFloat = 200.0
+    private let backgroundView: UIView = .init()
+
+    init(mode: SheetPresentationMode, presentedViewController: UIViewController, presenting presentingViewController: UIViewController?) {
+        self.mode = mode
+
         super.init(presentedViewController: presentedViewController, presenting: presentingViewController)
 
         presentedViewController.view.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(panAction)))
@@ -28,24 +36,35 @@ class SimpleSheetPresentationController: UIPresentationController {
         } else {
             safeInsets = .zero
         }
+
+        let insets: UIEdgeInsets
+        switch mode {
+        case .flat(let excludeSafeArea):
+            insets = excludeSafeArea ? safeInsets : .zero
+        case .card(_, let cardInsets):
+            insets = UIEdgeInsets(
+                top: max(cardInsets.top, safeInsets.top),
+                left: cardInsets.left + safeInsets.left,
+                bottom: max(cardInsets.bottom, safeInsets.bottom),
+                right: cardInsets.right + safeInsets.right
+            )
+        }
+
         let bounds = containerView.bounds
-        let inset: CGFloat = 16
-        let xInset: CGFloat = inset + max(safeInsets.left, safeInsets.right)
-        let width = bounds.width - xInset - xInset
-        let bottomInset = max(safeInsets.bottom, inset)
+        let width = bounds.width - insets.left - insets.right
 
         let frame: CGRect
         if let presentedView = presentedView {
-            let fittingSize = CGSize(width: width, height: bounds.height - safeInsets.top - safeInsets.bottom)
+            let fittingSize = CGSize(width: width, height: bounds.height - insets.top - insets.bottom)
             let fittedSize = presentedView.systemLayoutSizeFitting(
                 fittingSize,
                 withHorizontalFittingPriority: .required,
                 verticalFittingPriority: .fittingSizeLevel
             )
             let height = min(fittedSize.height, fittingSize.height)
-            frame = CGRect(x: xInset, y: bounds.height - fittedSize.height - bottomInset, width: width, height: height)
+            frame = CGRect(x: insets.left, y: bounds.height - fittedSize.height - insets.bottom, width: width, height: height)
         } else {
-            frame = CGRect(x: xInset, y: bounds.height - defaultHeight - bottomInset, width: width, height: defaultHeight)
+            frame = CGRect(x: insets.left, y: bounds.height - defaultHeight - insets.bottom, width: width, height: defaultHeight)
         }
 
         return frame
@@ -65,8 +84,13 @@ class SimpleSheetPresentationController: UIPresentationController {
     override func presentationTransitionWillBegin() {
         guard let containerView = containerView, let coordinator = presentingViewController.transitionCoordinator else { return }
 
-        presentedView?.clipsToBounds = true
-        presentedView?.layer.cornerRadius = 16
+        switch mode {
+        case .flat:
+            break
+        case .card(let cornerRadius, _):
+            presentedView?.clipsToBounds = true
+            presentedView?.layer.cornerRadius = cornerRadius
+        }
 
         backgroundView.backgroundColor = UIColor.black.withAlphaComponent(0.7)
         backgroundView.alpha = 0
@@ -113,11 +137,11 @@ class SimpleSheetPresentationController: UIPresentationController {
         let translation = recognizer.translation(in: containerView)
         let velocity = recognizer.velocity(in: containerView)
 
-        let animate = { (frame: CGRect) in
+        let reset = {
             let timings = UISpringTimingParameters(dampingRatio: 0.6, initialVelocity: CGVector(dx: 1, dy: 1))
             let animator = UIViewPropertyAnimator(duration: 0.6, timingParameters: timings)
             animator.addAnimations {
-                presentedView.frame = frame
+                presentedView.transform = .identity
             }
             animator.startAnimation()
         }
@@ -126,16 +150,17 @@ class SimpleSheetPresentationController: UIPresentationController {
         case .began:
             initialFrame = presentedView.frame
         case .changed:
-            let frame = initialFrame.offsetBy(dx: 0, dy: translation.y)
-            presentedView.frame = frame
+            let y = translation.y * (translation.y >= 0 ? 1 : 0.3)
+            let transform = CGAffineTransform(translationX: 0, y: y)
+            presentedView.transform = transform
         case .ended:
             if (velocity.y > 0 && translation.y > initialFrame.height / 2) || velocity.y > 100 {
                 presentedViewController.dismiss(animated: true, completion: nil)
             } else {
-                animate(initialFrame)
+                reset()
             }
         case .cancelled:
-            animate(initialFrame)
+            reset()
         case .failed:
             break
         default:
@@ -144,13 +169,19 @@ class SimpleSheetPresentationController: UIPresentationController {
     }
 }
 
-class SimpleSheetPresentationDelegate: NSObject, UIViewControllerTransitioningDelegate {
+class SheetPresentationDelegate: NSObject, UIViewControllerTransitioningDelegate {
+    var mode: SheetPresentationMode
+
+    init(mode: SheetPresentationMode) {
+        self.mode = mode
+    }
+
     func presentationController(
         forPresented presented: UIViewController,
         presenting: UIViewController?,
         source: UIViewController
     ) -> UIPresentationController? {
-        SimpleSheetPresentationController(presentedViewController: presented, presenting: presenting)
+        SheetPresentationController(mode: mode, presentedViewController: presented, presenting: presenting)
     }
 
     func animationController(
@@ -158,16 +189,16 @@ class SimpleSheetPresentationDelegate: NSObject, UIViewControllerTransitioningDe
         presenting: UIViewController,
         source: UIViewController
     ) -> UIViewControllerAnimatedTransitioning? {
-        SimpleSheetPresentationAnimationController(isPresenting: true)
+        SheetPresentationAnimationController(isPresenting: true)
     }
 
     func animationController(forDismissed dismissed: UIViewController) -> UIViewControllerAnimatedTransitioning? {
-        SimpleSheetPresentationAnimationController(isPresenting: false)
+        SheetPresentationAnimationController(isPresenting: false)
     }
 }
 
 
-class SimpleSheetPresentationAnimationController: NSObject, UIViewControllerAnimatedTransitioning {
+class SheetPresentationAnimationController: NSObject, UIViewControllerAnimatedTransitioning {
     let isPresenting: Bool
 
     init(isPresenting: Bool) {

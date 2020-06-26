@@ -1,6 +1,6 @@
 //
 // AppDelegate
-// SimpleSheetPresentation
+// SheetPresentation
 //
 // Created by Eugene Egorov on 18 June 2020.
 // Copyright (c) 2020 Eugene Egorov. All rights reserved.
