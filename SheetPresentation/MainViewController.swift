@@ -10,11 +10,12 @@ import UIKit
 
 class MainViewController: UIViewController {
     private let stackView: UIStackView = .init()
-    private let cardPresentationDelegate: SheetPresentationDelegate = .init(mode: .card(
+    private let cardPresentationDelegate: SheetPresentation = .init(mode: .card(
         cornerRadius: 16, insets: UIEdgeInsets(top: 16, left: 16, bottom: 16, right: 16)
     ))
-    private let flatSafePresentationDelegate: SheetPresentationDelegate = .init(mode: .flat(excludeSafeArea: true))
-    private let flatFullPresentationDelegate: SheetPresentationDelegate = .init(mode: .flat(excludeSafeArea: false))
+    private let flatSafePresentationDelegate: SheetPresentation = .init(mode: .flat(excludeSafeArea: true))
+    private let flatFullPresentationDelegate: SheetPresentation = .init(mode: .flat(excludeSafeArea: false))
+    private let scrollFlatSafePresentationDelegate: SheetPresentation = .init(mode: .flat(excludeSafeArea: true))
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -31,33 +32,28 @@ class MainViewController: UIViewController {
         stackView.axis = .vertical
         stackView.distribution = .fill
         stackView.alignment = .fill
+        stackView.spacing = 8
         view.addSubview(stackView)
 
-        let cardButton = UIButton(type: .system)
-        cardButton.setTitle("Card", for: .normal)
-        cardButton.addTarget(self, action: #selector(cardTap), for: .touchUpInside)
-        stackView.addArrangedSubview(cardButton)
-
-        let flatSafeButton = UIButton(type: .system)
-        flatSafeButton.setTitle("Flat Safe", for: .normal)
-        flatSafeButton.addTarget(self, action: #selector(flatSafeTap), for: .touchUpInside)
-        stackView.addArrangedSubview(flatSafeButton)
-
-        let flatFullButton = UIButton(type: .system)
-        flatFullButton.setTitle("Flat Full", for: .normal)
-        flatFullButton.addTarget(self, action: #selector(flatFullTap), for: .touchUpInside)
-        stackView.addArrangedSubview(flatFullButton)
+        stackView.addArrangedSubview(createButton(title: "Card", action: #selector(cardTap)))
+        stackView.addArrangedSubview(createButton(title: "Flat Safe", action: #selector(flatSafeTap)))
+        stackView.addArrangedSubview(createButton(title: "Flat Full", action: #selector(flatFullTap)))
+        stackView.addArrangedSubview(createButton(title: "Scroll Flat Safe", action: #selector(scrollFlatSafeTap)))
 
         let anchors = self.anchors
         NSLayoutConstraint.activate([
             stackView.leadingAnchor.constraint(equalTo: anchors.leading),
             stackView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             stackView.bottomAnchor.constraint(equalTo: anchors.bottom),
-
-            cardButton.heightAnchor.constraint(equalToConstant: 44),
-            flatSafeButton.heightAnchor.constraint(equalToConstant: 44),
-            flatFullButton.heightAnchor.constraint(equalToConstant: 44),
         ])
+    }
+
+    private func createButton(title: String, action: Selector) -> UIButton {
+        let button = UIButton(type: .system)
+        button.setTitle(title, for: .normal)
+        button.addTarget(self, action: action, for: .touchUpInside)
+        button.contentEdgeInsets = .init(top: 8, left: 16, bottom: 8, right: 16)
+        return button
     }
 
     @objc private func cardTap() {
@@ -78,6 +74,13 @@ class MainViewController: UIViewController {
         let controller = ChildViewController()
         controller.modalPresentationStyle = .custom
         controller.transitioningDelegate = flatFullPresentationDelegate
+        present(controller, animated: true)
+    }
+
+    @objc private func scrollFlatSafeTap() {
+        let controller = ScrollChildViewController()
+        controller.modalPresentationStyle = .custom
+        controller.transitioningDelegate = scrollFlatSafePresentationDelegate
         present(controller, animated: true)
     }
 }

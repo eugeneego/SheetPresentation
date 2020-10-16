@@ -2,32 +2,83 @@
 // SheetPresentation
 // SheetPresentation
 //
-// Created by Eugene Egorov on 18 June 2020.
-// Copyright (c) 2020 Eugene Egorov. All rights reserved.
+// Copyright (c) 2020 Eugene Egorov.
+// License: MIT, https://github.com/eugeneego/SheetPresentation/blob/master/LICENSE
 //
 
 import UIKit
 
-enum SheetPresentationMode {
-    case flat(excludeSafeArea: Bool)
-    case card(cornerRadius: CGFloat, insets: UIEdgeInsets)
+public protocol SheetPresentable {
+    var sheetPresentableScrollView: UIScrollView? { get }
 }
 
-class SheetPresentationController: UIPresentationController {
-    private let mode: SheetPresentationMode
-    private let defaultHeight: CGFloat = 200.0
-    private let backgroundView: UIView = .init()
+open class SheetPresentation: NSObject, UIViewControllerTransitioningDelegate {
+    public enum Mode {
+        case flat(excludeSafeArea: Bool)
+        case card(cornerRadius: CGFloat, insets: UIEdgeInsets)
+    }
 
-    init(mode: SheetPresentationMode, presentedViewController: UIViewController, presenting presentingViewController: UIViewController?) {
+    open var mode: Mode
+    open var completion: (() -> Void)?
+
+    public init(mode: Mode) {
         self.mode = mode
+    }
+
+    open func presentationController(
+        forPresented presented: UIViewController,
+        presenting: UIViewController?,
+        source: UIViewController
+    ) -> UIPresentationController? {
+        SheetPresentationController(mode: mode, presentedViewController: presented, presenting: presenting, completion: completion)
+    }
+
+    open func animationController(
+        forPresented presented: UIViewController,
+        presenting: UIViewController,
+        source: UIViewController
+    ) -> UIViewControllerAnimatedTransitioning? {
+        SheetPresentationAnimationController(isPresenting: true)
+    }
+
+    open func animationController(forDismissed dismissed: UIViewController) -> UIViewControllerAnimatedTransitioning? {
+        SheetPresentationAnimationController(isPresenting: false)
+    }
+}
+
+open class SheetPresentationController: UIPresentationController {
+    private let mode: SheetPresentation.Mode
+    private let completion: (() -> Void)?
+
+    private let backgroundView: UIView = .init()
+    private let panGestureRecognizer: UIPanGestureRecognizer = .init()
+    private let tapGestureRecognizer: UITapGestureRecognizer = .init()
+
+    public init(
+        mode: SheetPresentation.Mode,
+        presentedViewController: UIViewController,
+        presenting presentingViewController: UIViewController?,
+        completion: (() -> Void)?
+    ) {
+        self.mode = mode
+        self.completion = completion
 
         super.init(presentedViewController: presentedViewController, presenting: presentingViewController)
 
-        presentedViewController.view.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(panAction)))
-        backgroundView.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(closeAction)))
+        panGestureRecognizer.addTarget(self, action: #selector(panAction))
+        panGestureRecognizer.delegate = self
+        presentedViewController.view.addGestureRecognizer(panGestureRecognizer)
+
+        tapGestureRecognizer.addTarget(self, action: #selector(close))
+        backgroundView.addGestureRecognizer(tapGestureRecognizer)
+        backgroundView.backgroundColor = UIColor.black.withAlphaComponent(0.7)
     }
 
-    override var frameOfPresentedViewInContainerView: CGRect {
+    deinit {
+        scrollObserver?.invalidate()
+    }
+
+    open override var frameOfPresentedViewInContainerView: CGRect {
         guard let containerView = containerView else { return .zero }
 
         let safeInsets: UIEdgeInsets
@@ -55,6 +106,7 @@ class SheetPresentationController: UIPresentationController {
 
         let frame: CGRect
         if let presentedView = presentedView {
+            observe(scrollView: presentable?.sheetPresentableScrollView)
             let fittingSize = CGSize(width: width, height: bounds.height - insets.top - insets.bottom)
             let fittedSize = presentedView.systemLayoutSizeFitting(
                 fittingSize,
@@ -62,15 +114,17 @@ class SheetPresentationController: UIPresentationController {
                 verticalFittingPriority: .fittingSizeLevel
             )
             let height = min(fittedSize.height, fittingSize.height)
-            frame = CGRect(x: insets.left, y: bounds.height - fittedSize.height - insets.bottom, width: width, height: height)
+            maxTopOffset = fittingSize.height - height
+            frame = CGRect(x: insets.left, y: bounds.height - height - insets.bottom, width: width, height: height)
         } else {
-            frame = CGRect(x: insets.left, y: bounds.height - defaultHeight - insets.bottom, width: width, height: defaultHeight)
+            let height: CGFloat = 200
+            frame = CGRect(x: insets.left, y: bounds.height - height - insets.bottom, width: width, height: height)
         }
 
         return frame
     }
 
-    override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
+    open override func viewWillTransition(to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator) {
         super.viewWillTransition(to: size, with: coordinator)
 
         coordinator.animate(
@@ -81,7 +135,7 @@ class SheetPresentationController: UIPresentationController {
         )
     }
 
-    override func presentationTransitionWillBegin() {
+    open override func presentationTransitionWillBegin() {
         guard let containerView = containerView, let coordinator = presentingViewController.transitionCoordinator else { return }
 
         switch mode {
@@ -92,7 +146,6 @@ class SheetPresentationController: UIPresentationController {
             presentedView?.layer.cornerRadius = cornerRadius
         }
 
-        backgroundView.backgroundColor = UIColor.black.withAlphaComponent(0.7)
         backgroundView.alpha = 0
         backgroundView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         backgroundView.frame = containerView.bounds
@@ -106,7 +159,7 @@ class SheetPresentationController: UIPresentationController {
         )
     }
 
-    override func dismissalTransitionWillBegin() {
+    open override func dismissalTransitionWillBegin() {
         guard let coordinator = presentingViewController.transitionCoordinator else { return }
 
         coordinator.animate(
@@ -117,21 +170,30 @@ class SheetPresentationController: UIPresentationController {
         )
     }
 
-    override func dismissalTransitionDidEnd(_ completed: Bool) {
+    open override func dismissalTransitionDidEnd(_ completed: Bool) {
         if completed {
             backgroundView.removeFromSuperview()
+            completion?()
         }
     }
 
-    // MARK: - Gestures
+    // MARK: - Pan gesture and scroll view handling
 
-    @objc private func closeAction() {
+    private var initialFrame: CGRect = .zero
+    private var interceptScroll: Bool = true
+    private var maxTopOffset: CGFloat = 0
+    private var scrollIsOnTop: Bool = true
+    private var scrollObserver: NSKeyValueObservation?
+
+    private var presentable: SheetPresentable? {
+        presentedViewController as? SheetPresentable
+    }
+
+    @objc private func close() {
         presentedViewController.dismiss(animated: true, completion: nil)
     }
 
-    private var initialFrame: CGRect = .zero
-
-    @objc private func panAction(_ recognizer: UIPanGestureRecognizer) {
+    @objc open func panAction(_ recognizer: UIPanGestureRecognizer) {
         guard let presentedView = presentedView, let containerView = containerView else { return }
 
         let translation = recognizer.translation(in: containerView)
@@ -149,63 +211,75 @@ class SheetPresentationController: UIPresentationController {
         switch recognizer.state {
         case .began:
             initialFrame = presentedView.frame
+            let isScrollable = presentable?.sheetPresentableScrollView.map { $0.contentSize.height > $0.frame.height } ?? false
+            interceptScroll = !isScrollable || (scrollIsOnTop && velocity.y > 0)
         case .changed:
-            let y = translation.y * (translation.y >= 0 ? 1 : 0.3)
-            let transform = CGAffineTransform(translationX: 0, y: y)
-            presentedView.transform = transform
+            if interceptScroll {
+                let y = max(translation.y * (translation.y >= 0 ? 1 : 0.3), -maxTopOffset)
+                let transform = CGAffineTransform(translationX: 0, y: y)
+                presentedView.transform = transform
+            }
         case .ended:
-            if (velocity.y > 0 && translation.y > initialFrame.height / 2) || velocity.y > 100 {
-                presentedViewController.dismiss(animated: true, completion: nil)
-            } else {
-                reset()
+            if interceptScroll {
+                if (velocity.y > 0 && translation.y > initialFrame.height / 2) || velocity.y > 100 {
+                    close()
+                } else {
+                    reset()
+                }
             }
         case .cancelled:
-            reset()
+            if interceptScroll {
+                reset()
+            }
         case .failed:
             break
         default:
             break
         }
     }
-}
 
-class SheetPresentationDelegate: NSObject, UIViewControllerTransitioningDelegate {
-    var mode: SheetPresentationMode
-
-    init(mode: SheetPresentationMode) {
-        self.mode = mode
+    private func observe(scrollView: UIScrollView?) {
+        scrollObserver?.invalidate()
+        scrollIsOnTop = scrollView?.contentOffset.y == 0
+        scrollObserver = scrollView?.observe(\.contentOffset, options: .new) { [weak self] scrollView, change in
+            guard self?.containerView != nil else { return }
+            self?.onScroll(scrollView: scrollView, change: change)
+        }
     }
 
-    func presentationController(
-        forPresented presented: UIViewController,
-        presenting: UIViewController?,
-        source: UIViewController
-    ) -> UIPresentationController? {
-        SheetPresentationController(mode: mode, presentedViewController: presented, presenting: presenting)
+    private func onScroll(scrollView: UIScrollView, change: NSKeyValueObservedChange<CGPoint>) {
+        guard !presentedViewController.isBeingDismissed, !presentedViewController.isBeingPresented else { return }
+        scrollIsOnTop = change.newValue?.y == 0
+        if interceptScroll {
+            stopScroll()
+        }
     }
 
-    func animationController(
-        forPresented presented: UIViewController,
-        presenting: UIViewController,
-        source: UIViewController
-    ) -> UIViewControllerAnimatedTransitioning? {
-        SheetPresentationAnimationController(isPresenting: true)
-    }
-
-    func animationController(forDismissed dismissed: UIViewController) -> UIViewControllerAnimatedTransitioning? {
-        SheetPresentationAnimationController(isPresenting: false)
+    private func stopScroll() {
+        guard let scrollView = presentable?.sheetPresentableScrollView else { return }
+        scrollView.setContentOffset(CGPoint(x: 0, y: 0), animated: false)
+        scrollView.showsVerticalScrollIndicator = false
     }
 }
 
+extension SheetPresentationController: UIGestureRecognizerDelegate {
+    open func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldBeRequiredToFailBy otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+        false
+    }
 
-class SheetPresentationAnimationController: NSObject, UIViewControllerAnimatedTransitioning {
-    let isPresenting: Bool
+    open func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+        otherGestureRecognizer.view == presentable?.sheetPresentableScrollView
+    }
+}
 
-    init(isPresenting: Bool) {
+open class SheetPresentationAnimationController: NSObject, UIViewControllerAnimatedTransitioning {
+    public let isPresenting: Bool
+
+    public init(isPresenting: Bool) {
         self.isPresenting = isPresenting
     }
 
-    func animateTransition(using transitionContext: UIViewControllerContextTransitioning) {
+    open func animateTransition(using transitionContext: UIViewControllerContextTransitioning) {
         guard let viewController = transitionContext.viewController(forKey: isPresenting ? .to : .from) else { return }
 
         let containerView = transitionContext.containerView
@@ -236,7 +310,7 @@ class SheetPresentationAnimationController: NSObject, UIViewControllerAnimatedTr
         animator.startAnimation()
     }
 
-    func transitionDuration(using transitionContext: UIViewControllerContextTransitioning?) -> TimeInterval {
+    open func transitionDuration(using transitionContext: UIViewControllerContextTransitioning?) -> TimeInterval {
         isPresenting ? 0.6 : 0.2
     }
 }

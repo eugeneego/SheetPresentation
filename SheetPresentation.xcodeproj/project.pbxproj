@@ -11,12 +11,14 @@
 		B2FA8760401E3B331C3402BA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B2FA89EABD1952406529E5E3 /* Assets.xcassets */; };
 		B2FA87D979E9C1A11B9E0E30 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2FA8DE9C386BAD82110A28F /* AppDelegate.swift */; };
 		B2FA882EDC30A371B379C861 /* ChildViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2FA8A1A4979EABC27D0FAF9 /* ChildViewController.swift */; };
+		B2FA8A7121FB71F32AD4F116 /* ScrollChildViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2FA81932DE7FF6E5A26B2EF /* ScrollChildViewController.swift */; };
 		B2FA8B2C3AA2BB99D9570790 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = B2FA8FAFDBC7624FB74CCEC6 /* LaunchScreen.storyboard */; };
 		B2FA8D94B46AC208AECC424A /* SheetPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2FA8DC7A0E8DDC678EC43C4 /* SheetPresentation.swift */; };
 		B2FA8F546F145AFDA63CFF50 /* UIViewControllers+Anchors.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2FA8760828378ED7AF9191A /* UIViewControllers+Anchors.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		B2FA81932DE7FF6E5A26B2EF /* ScrollChildViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ScrollChildViewController.swift; sourceTree = "<group>"; };
 		B2FA8760828378ED7AF9191A /* UIViewControllers+Anchors.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "UIViewControllers+Anchors.swift"; sourceTree = "<group>"; };
 		B2FA88E2D92149EC553AD065 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.info; path = Info.plist; sourceTree = "<group>"; };
 		B2FA88F61699C729A21E0BDE /* MainViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewController.swift; sourceTree = "<group>"; };
@@ -50,6 +52,7 @@
 				B2FA8A1A4979EABC27D0FAF9 /* ChildViewController.swift */,
 				B2FA8DC7A0E8DDC678EC43C4 /* SheetPresentation.swift */,
 				B2FA8760828378ED7AF9191A /* UIViewControllers+Anchors.swift */,
+				B2FA81932DE7FF6E5A26B2EF /* ScrollChildViewController.swift */,
 			);
 			path = SheetPresentation;
 			sourceTree = "<group>";
@@ -138,6 +141,7 @@
 				B2FA882EDC30A371B379C861 /* ChildViewController.swift in Sources */,
 				B2FA8D94B46AC208AECC424A /* SheetPresentation.swift in Sources */,
 				B2FA8F546F145AFDA63CFF50 /* UIViewControllers+Anchors.swift in Sources */,
+				B2FA8A7121FB71F32AD4F116 /* ScrollChildViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -205,7 +209,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 13.5;
+				IPHONEOS_DEPLOYMENT_TARGET = 11.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -220,7 +224,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				INFOPLIST_FILE = SheetPresentation/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 11.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = com.eugeneego.SheetPresentation;
 				PRODUCT_NAME = SheetPresentation;
@@ -273,7 +277,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 13.5;
+				IPHONEOS_DEPLOYMENT_TARGET = 11.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
@@ -287,7 +291,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				INFOPLIST_FILE = SheetPresentation/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 10.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 11.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = com.eugeneego.SheetPresentation;
 				PRODUCT_NAME = SheetPresentation;
